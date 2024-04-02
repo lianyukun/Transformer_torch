@@ -21,7 +21,7 @@ class Transformer(nn.Module):
 		"""
 		:param vocab_params: 词表参数 
 		{
-		src_vocab_size: int,   # 输入词表大小,
+		src_vocab_size: int,   # 输入词表大小
 		tgt_vocab_size: int    # 输出词表大小
 		}
 		:param enc_dec_params: Encoder和Decoder的参数
@@ -30,7 +30,7 @@ class Transformer(nn.Module):
 		}
 		:param attn_params: 注意力网络的参数
 		{
-		n_heads: int,   # 多头注意力的头数, 
+		n_heads: int,   # 多头注意力的头数,
 		d_k: int,       # 注意力中Q和K的嵌入维度，Q和K的嵌入维度必须相等，不然Q和K.T无法矩阵相乘
 		d_v: int        # 注意力中V的嵌入维度，可以跟d_k不同，为了方便一般取相同
 		}
