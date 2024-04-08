@@ -7,7 +7,7 @@ import torch.utils.data as Data
 from typing import List, Dict, Tuple
 
 from module import MultiHeadAttention, PoswiseFeedForwardNet
-from util import PositionalEncoding, get_attn_pad_mask, get_sequence_mask
+from util import PositionalEncoding, get_attn_pad_mask, get_attn_subsequence_mask
 
 class DecoderLayer(nn.Module):
 	"""
