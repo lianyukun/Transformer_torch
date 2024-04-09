@@ -113,7 +113,7 @@ class MultiHeadAttention(nn.Module):
 		# attn_mask: [batch_size, len_q, len_k] -> [batch_size, n_heads, len_q, len_k]
 		attn_mask = attn_mask.unsqueeze(1).repeat(1, n_heads, 1, 1)
 		# context: [batch_size, n_heads, len_q, d_v], attn: [batch_size, n_heads, len_q, len_k]
-		context, attn = self.attention(Q, K, V, attn_mask)
+		context, attn = self.attention(Q, K, V, attn_mask, self.Dropout)
 
 		# 将不同头的输出拼在一起
 		# context: [batch_size, n_heads, len_q, d_v] -> [batch_size, len_q, n_heads, d_v] -> [batch_size, len_q, n_heads * d_v]
@@ -140,6 +140,28 @@ class PoswiseFeedForwardNet(nn.Module):
 		:param d_ff: 前馈层中隐藏层的维度
 		:param dropout: 置零比率，nn.Dropout(p=dropout)
   		"""
+		super(PoswiseFeedForwardNet, self).__init__()
+
+		self.fc = nn.Sequential(
+			nn.Linear(d_model, d_ff, bias=False),
+			nn.ReLU(),
+			nn.Linear(d_ff, d_model, bias=False)
+		)
+		if dropout:
+			self.Dropout =  nn.Dropout(p=dropout)
+		else:
+			self.Dropout = None
+
+	def forward(self, inputs):
+		"""
+  		:param inputs: [batch_size, seq_len, d_model]
+		"""
+		residual = inputs
+		output = self.fc(inputs)
+		if self.Dropout:
+			output = self.Dropout(output)
+
+		return nn.LayerNorm(d_model)(output + residual) # [batch_size, seq_len, d_model]
 
 
 
