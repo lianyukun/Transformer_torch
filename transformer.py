@@ -47,7 +47,8 @@ class Transformer(nn.Module):
 		self.decoder = Decoder(vocab_params['tgt_vocab_size'], enc_dec_params['n_layers'], attn_params, common_net_params).to(device)
 		self.projection = nn.Linear(d_model, tgt_vocab_size, bias=False).to(device)
 		
-	def forward(enc_inputs: torch.Tensor, dec_inputs: torch.Tensor) -> Tuple[torch.Tensor, List[torch.Tensor], List[torch.Tensor], List[torch.Tensor]]:
+	def forward(enc_inputs: torch.Tensor, 
+				dec_inputs: torch.Tensor) -> Tuple[torch.Tensor, List[torch.Tensor], List[torch.Tensor], List[torch.Tensor]]:
 		"""
 		Transformer的输入：两个序列
 		Transformer的训练方式和其他模型不太一样，他在训练过程是采用了Teacher Forcing的训练过程，就是会将原始输入和正确答案都会喂给模型，然后模型进行训练，而在推理过程中，是不会给正确答案的
@@ -61,7 +62,7 @@ class Transformer(nn.Module):
 		enc_outputs, enc_self_attns = self.enocder(enc_inputs)
 		# dec_outputs: [batch_size, tgt_len, d_model]
 		# dec_self_attns, dec_enc_attns也都是个列表，列表长度均为n_layers, 元素尺寸分别为[batch_size, n_heads, tgt_len, tgt_len]和[batch_size, n_heads, tgt_len, src_len]
-		dec_outputs, dec_self_attns, dec_enc_attns = self.decoder(dec_inputs, enc_outputs)
+		dec_outputs, dec_self_attns, dec_enc_attns = self.decoder(dec_inputs, enc_inputs, enc_outputs)
 		# dec_outputs: [batch_size, tgt_len, d_model] -> dec_logits: [batch_size, tgt_len, tgt_vocab_size]
 		dec_logits = self.projection(dec_outputs)
 		
