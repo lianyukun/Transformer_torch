@@ -163,6 +163,49 @@ class PoswiseFeedForwardNet(nn.Module):
 
 		return nn.LayerNorm(d_model)(output + residual) # [batch_size, seq_len, d_model]
 
+def get_attn_pad_mask(Orig_input_Q, Orig_input_K):
+	"""
+	在transformer中，pad_mask的作用，是在对value向量用attn的softmax做加权平均的时候，可以让pad对应的alpha_ij=0，
+ 	这样注意力就不会考虑到pad向量（在nlp场景中还在pooling和loss方面有用），因此实际上mask的是K中的pad
+
+   	一个batch中不同样本的输入长度很可能是不一样的，此时我们要设置一个最大句子长度，然后对空白区域进行padding填充，
+	而填充的区域无论在Encoder还是在Decoder中的计算中都是没有意义的，因此需要用mask进行标识，屏蔽掉对应区域的影响
+
+ 	这里的使用场景是seq中缺失位已经用0先补齐了，如果是没有补齐的不适用
+    适用：[[1,2,0],[1,0,0]];不适用：[[1,2],[1]]
+    这里seq_1, seq_2表示两个序列，例如encoder_inputs (x1,x2,..xm)和encoder_inputs (x1,x2..xm)
+    encoder和decoder都可能调用这个函数，所以seq_len视情况而定
+    seq_len could be src_len or it could be tgt_len
+    seq_len1和seq_len2理论上可以是不相等的
+    :param Orig_input_Q: [batch_size, len_q] # Q对应的未经emb的输入
+    :param Orig_input_K: [batch_size, len_k] # K对应的未经emb的输入
+    :return: [batch_size, len_q, len_k]
+ 	"""
+	batch_size = Orig_input_K.size(0)
+	len_q = Orig_input_Q.size(1) # 用于拓展维度
+	len_k = Orig_input_K.size(1)
+	# 按照本例中的设定，eq(0) is PAD token
+	# 例如：seq1 = [[1,2,3,4,0],[1,2,3,0,0]]
+	pad_attn_mask = Orig_input_K.data.eq(0).type(torch.float) # ==1即为需要masked的位置
+	# 因为attn的结果维度是[batch_size, len_q, len_k], 所以pad_attn_mask需要拓展维度
+	pad_attn_mask = pad_attn_mask.unsqueeze(1) # [batch_size, 1, len_k]
+	return pad_attn_mask.expand(batch_size, len_q, len_k)
+
+
+def get_attn_subsequence_mask(Orig_input):
+	"""
+	生成向后遮掩的掩码张量，参数size是掩码张量最后两个维度的大小，它最后两维形成一个方阵
+    屏蔽掉来自未来的信息：我们已经学习了 attention 的计算流程，它是会综合所有时间步的计算的，那么在解码的时候，就有可能获取到未来的信息，这是不行的。因此，这种情况也需要我们使用 mask 进行屏蔽。
+    在transformer中，只有Decoder中的 self-attention 里面用到，这时候Q和K的句子来对来源于同一个输入，长度一定是相等的，所以sequence_mask是一个方阵
+    :param Orig_input: [batch_size, tgt_len]
+    :return: [batch_size, tgt_len, tgt_len]
+ 	"""
+	attn_shape = [Orig_input.size(0), Orig_input.size(1), Orig_input.size(1)]
+	# attn_shape: [batch_size, tgt_len, tgt_len]
+	subsequence_mask = np.tril(np.ones(attn_shape), k=0) # 生成一个下三角矩阵
+	# 统一为1的地方需要mask， 方便后面与pad_mask相加
+	subsequence_mask = torch.tensor(1 - subsequence_mask)
+	return subsequence_mask
 
 
 
