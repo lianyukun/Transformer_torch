@@ -71,9 +71,11 @@ class Decoder(nn.Module):
 
 	def forward(self,
 				dec_inputs: torch.Tensor,
+				enc_inputs: torch.Tensor,
 				enc_outputs: torch.Tensor) -> Tuple[torch.Tensor, List[torch.Tensor], List[torch.Tensor]]:
 		"""
 		:param dec_inputs: [batch_size, tgt_len]
+  		:param enc_inputs: [batch_size, src_len]
   		:param enc_outputs: [batch_size, src_len, d_model] # 用在Encoder-Decoder的Attention层
   		"""
 		# dec_emb_outputs: [batch_size, tgt_len, d_model]
@@ -91,9 +93,9 @@ class Decoder(nn.Module):
 
 		# Encoder-Decoder的Attention层
 		# 这里的mask只是pad_mask(因为enc是处理K，V的，求Attention时是用v1,v2,..vm其余去加权，要把pad对应的vi的相关系数设置为0， 这样注意力就不会关注pad向量)
-		# Q的长度来自dec_inputs, K、V的长度来自于enc_outputs
+		# Q的长度来自dec_inputs, K、V的长度来自于enc_inputs, 请注意这里一定要原始未经emb的输入，才能获取到pad
 		# denc_enc_attn_pad_mask: [batch_size, tgt_len, src_len]
-		dec_enc_attn_pad_mask = get_attn_pad_mask(dec_inputs, enc_outputs)
+		dec_enc_attn_pad_mask = get_attn_pad_mask(dec_inputs, enc_inputs)
 
 		# 在计算中并不会用到，画图用
 		dec_self_attns, dec_enc_attns = [], []
