@@ -163,6 +163,45 @@ class PoswiseFeedForwardNet(nn.Module):
 
 		return nn.LayerNorm(d_model)(output + residual) # [batch_size, seq_len, d_model]
 
+
+class PositionalEncoding(nn.Module):
+    """
+    位置编码
+    """
+    def __init__(self, d_model, max_len=5000,dropout=0.1):
+        """
+        :param d_model:embedding的维度 
+        :param max_len: 最大的序列长度
+        :param dropout: 置零比率，nn.Dropout(p=dropout)
+        """
+        super(PositionalEncoding, self).__init__()
+        self.dropout = nn.Dropout(p=dropout)
+        
+        pe = torch.zeros(max_len, d_model)
+        # position [max_len] -> [max_len,1] 拓展一个维度以便下面乘以div_term时广播
+        position = torch.arange(0, max_len, dtype=torch.float).unsqueeze(1)
+        # 这里和原始公式不一样，但可以推导是等价的，这么做是为了防止运算过程超出float的范围
+        # e^(-2i*ln(10000)/d_model) = e^(-ln(10000^(2i/d_model)) = e^(ln(1/(10000^(2i/d_model)) = 1/10000^(2i/d_model)
+        div_term = torch.exp(torch.arange(0, d_model, 2).float()
+                             * (-math.log(10000) /d_model))
+        pe[:, 0::2] = torch.sin(position * div_term)
+        pe[:, 1::2] = torch.cos(position * div_term)
+        # pe [max_len, d_model] -> [batch_size, max_len, d_model]
+        pe = pe.unsqueeze(0)
+        # 缓存pe，以便随时通过self.pe访问
+        self.register_buffer('pe', pe)
+        
+    def forward(self, x):
+        """
+        :param x:[batch_size, seq_len, d_model]
+        :return: [batch_size, seq_len, d_model]
+        """
+        # x的seq_len一般都小于max_len，所以需要截取到seq_len的长度在相加
+        x = x + self.pe[:, :x.size(1), :].requires_grad_(False)
+        return self.dropout(x)
+
+
+
 def get_attn_pad_mask(Orig_input_Q, Orig_input_K):
 	"""
 	在transformer中，pad_mask的作用，是在对value向量用attn的softmax做加权平均的时候，可以让pad对应的alpha_ij=0，
